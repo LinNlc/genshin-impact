@@ -1,7 +1,7 @@
 import { beginnerRemaining, showBeginner } from '$lib/store/app-stores';
 import { HistoryManager } from '../dataAPI/api-indexeddb';
-import { localPity, owneditem, rollCounter } from '../dataAPI/api-localstore';
-import { getRate, prob, rates } from './probabilities';
+import { owneditem, rollCounter } from '../dataAPI/api-localstore';
+import { drawFromPool } from './universal-pool';
 
 const { addHistory } = HistoryManager;
 
@@ -12,107 +12,65 @@ const { addHistory } = HistoryManager;
  * @param {number} indexOfBanner Index Of active banner among the dual banner
  * @returns Wish Result Object
  */
+// 修改开始：按统一卡池规则抽取
 const roll = async (banner, WishInstance, indexOfBanner) => {
-	if (banner === "member") {
+        const drawn = drawFromPool();
+        if (!drawn) {
+                return {
+                        pity: 1,
+                        isNew: false,
+                        bonusType: 'stardust',
+                        bonusQty: 0,
+                        type: null,
+                        rarity: 0,
+                        name: null
+                };
+        }
 
-		// Get Item
-		const randomItem = WishInstance.getItem(5, banner, indexOfBanner);
-		// const { manual, wish } = owneditem.put({ itemID: randomItem.itemID });
-		// const numberOfOwnedItem = manual + wish - 1;
-		// const isNew = numberOfOwnedItem < 1;
-		let pity = 1;
-		const isNew = false;
+        const date = new Date();
+        const time = `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+        const randomItem = {
+                ...drawn,
+                banner,
+                bannerName: banner,
+                time
+        };
 
-		// Milestone Bonus (Stardust or Starglitter)
-		const bonusType = randomItem.rarity === 3 ? 'stardust' : 'starglitter';
-		const bonusQty = 20;
+        const rarity = randomItem.rarity ?? 3;
+        let pity = 1;
 
-		const result = { pity, isNew, bonusType, bonusQty, ...randomItem };
-		return result;
-	}
+        const rollQty = rollCounter.get(banner);
+        rollCounter.set(banner, rollQty + 1);
 
+        if (banner === 'beginner') {
+                // hide beginner banner after 20 roll
+                beginnerRemaining.update((v) => (v < 1 ? 0 : v - 1));
+                if (rollQty >= 19) showBeginner.set(false);
+        }
 
-	const pity5 = localPity.get(`pity5-${banner}`) + 1;
-	const pity4 = localPity.get(`pity4-${banner}`) + 1;
-	const maxPity = getRate(banner, 'max5');
+        // 本版本按业务要求关闭保底逻辑，只按当前分组权重抽取
+        // if (rarity === 5) {
+        //         localPity.set(`pity4-${banner}`, pity4);
+        //         localPity.set(`pity5-${banner}`, 0);
+        //         pity = pity5;
+        // }
 
-	const rate5star = () => {
-		return rates({
-			baseRate: getRate(banner, 'baseRate5'),
-			rateIncreasedAt: getRate(banner, 'hard5'),
-			currentPity: pity5,
-			maxPity
-		});
-	};
+        // if (rarity === 4) {
+        //         localPity.set(`pity4-${banner}`, 0);
+        //         localPity.set(`pity5-${banner}`, pity5);
+        //         pity = pity4;
+        // }
 
-	const rate4star = () => {
-		return rates({
-			baseRate: getRate(banner, 'baseRate4'),
-			currentPity: pity4,
-			rateIncreasedAt: getRate(banner, 'hard4'),
-			maxPity: getRate(banner, 'max4')
-		});
-	};
+        // if (rarity === 3) {
+        //         localPity.set(`pity4-${banner}`, pity4);
+        //         localPity.set(`pity5-${banner}`, pity5);
+        // }
 
-	let chance5star = rate5star();
-	let chance4star = rate4star();
-	let chance3star = 100 - chance4star - chance5star;
+        const { manual, wish } = owneditem.put({ itemID: randomItem.itemID });
+        const numberOfOwnedItem = manual + wish - 1;
+        const isNew = numberOfOwnedItem < 1;
 
-	if ((chance3star < 0 && pity5 >= maxPity) || chance5star === 100) chance4star = 0;
-	if (chance3star < 0) chance3star = 0;
-	if (chance4star === 100) chance5star = 0;
-
-	const item = [
-		{
-			rarity: 3,
-			chance: chance3star
-		},
-		{
-			rarity: 4,
-			chance: chance4star
-		},
-		{
-			rarity: 5,
-			chance: chance5star
-		}
-	];
-
-	const { rarity } = prob(item);
-	let pity = 1;
-
-	const rollQty = rollCounter.get(banner);
-	rollCounter.set(banner, rollQty + 1);
-
-	if (banner === 'beginner') {
-		// hide beginner banner after 20 roll
-		beginnerRemaining.update((v) => (v < 1 ? 0 : v - 1));
-		if (rollQty >= 19) showBeginner.set(false);
-	}
-
-	if (rarity === 5) {
-		localPity.set(`pity4-${banner}`, pity4);
-		localPity.set(`pity5-${banner}`, 0);
-		pity = pity5;
-	}
-
-	if (rarity === 4) {
-		localPity.set(`pity4-${banner}`, 0);
-		localPity.set(`pity5-${banner}`, pity5);
-		pity = pity4;
-	}
-
-	if (rarity === 3) {
-		localPity.set(`pity4-${banner}`, pity4);
-		localPity.set(`pity5-${banner}`, pity5);
-	}
-
-	// Get Item
-	const randomItem = WishInstance.getItem(rarity, banner, indexOfBanner);
-	const { manual, wish } = owneditem.put({ itemID: randomItem.itemID });
-	const numberOfOwnedItem = manual + wish - 1;
-	const isNew = numberOfOwnedItem < 1;
-
-	// storing item to storage
+        // storing item to storage
 	await saveResult({ pity, ...randomItem });
 
 	// Set Constellation
@@ -125,9 +83,10 @@ const roll = async (banner, WishInstance, indexOfBanner) => {
 	const bonusType = randomItem.rarity === 3 ? 'stardust' : 'starglitter';
 	const bonusQty = getMilestoneQty(randomItem.rarity, randomItem.type, isFullConstellation, isNew);
 
-	const result = { pity, isNew, bonusType, bonusQty, ...randomItem };
-	return result;
+        const result = { pity, isNew, bonusType, bonusQty, ...randomItem };
+        return result;
 };
+// 修改结束
 
 const saveResult = async (result) => {
 	const data = { ...result };
