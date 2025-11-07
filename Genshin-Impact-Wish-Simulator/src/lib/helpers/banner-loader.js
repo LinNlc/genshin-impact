@@ -81,13 +81,12 @@ export const initializeBanner = async ({ patch, phase }) => {
 
                 // 修改开始：仅保留名单抽取卡池
                 const list = [];
+                const normalizedPhase = Number.parseInt(phase, 10);
+                const memberEntry =
+                        member.find(({ version }) => version === normalizedPhase) || member[0] || {};
+                const { version: stdver = 1, featured: memFeatured = {} } = memberEntry;
 
-                const { data } = await import(`$lib/data/banners/events/${patch}.json`);
-                const { banners } = data.find((b) => b.phase === phase);
-                const { standardVersion: stdver } = banners;
-                const { featured: memFeatured } = member.find(({ version }) => stdver === version) || {};
-
-                if (memFeatured) {
+                if (Object.keys(memFeatured).length > 0) {
                         list.push({ type: 'member', stdver, ...memFeatured });
                 }
 
@@ -109,13 +108,12 @@ export const initializeBanner = async ({ patch, phase }) => {
 };
 
 export const handleShowStarter = (isShow) => {
-	if (!isShow) {
-		return bannerList.update((bn) => {
-			return bn.filter(({ type }) => type !== 'beginner');
-		});
-	}
-	return bannerList.update((bn) => {
-		bn.unshift({ type: 'beginner', ...beginner.featured });
-		return bn;
-	});
+        if (!isShow) {
+                return bannerList.update((bn) => {
+                        return bn.filter(({ type }) => type !== 'beginner');
+                });
+        }
+        // 修改开始：名单卡池模式下不再添加新手池
+        return bannerList.update((bn) => bn);
+        // 修改结束
 };

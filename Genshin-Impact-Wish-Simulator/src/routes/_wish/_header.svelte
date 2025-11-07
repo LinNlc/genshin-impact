@@ -29,9 +29,13 @@
 
 	export let bannerType = '';
 
-	$: event = bannerType.match('event');
-	$: balance = event ? $intertwined : $acquaint;
-	$: unlimitedWish = $wishAmount === 'unlimited';
+        $: event = bannerType.match('event');
+        $: balance = event ? $intertwined : $acquaint;
+        $: unlimitedWish = $wishAmount === 'unlimited';
+        // 修改开始：禁用顶部卡池切换
+        let hasBannerSwitch = false;
+        $: hasBannerSwitch = $bannerList.length > 1;
+        // 修改结束
 
 	const inTransition = (node, args) => {
 		return args.mobile
@@ -137,9 +141,13 @@
 					</MyFund>
 				</div>
 
-				<button class="close" on:click={previousClick} title="Change Banner">
-					<i class="gi-close" />
-				</button>
+                                <!-- 修改开始：仅在存在多卡池时展示切换按钮 -->
+                                {#if hasBannerSwitch}
+                                        <button class="close" on:click={previousClick} title="Change Banner">
+                                                <i class="gi-close" />
+                                        </button>
+                                {/if}
+                                <!-- 修改结束 -->
 				<button class="close" on:click={closeWindows} title="close">
 					<i class="gi-close" />
 				</button>
@@ -158,7 +166,7 @@
 		</div>
 	</div>
 
-	{#if !$editorMode && !$isCustomBanner}
+{#if !$editorMode && !$isCustomBanner && hasBannerSwitch}
 		<div class="banner-button" in:inTransition={{ mobile: $mobileMode }}>
 			<div class="bg" style={headerHeightstyle}>
 				<img src={$assets['brand.png']} alt="Brand" crossorigin="anonymous" />
