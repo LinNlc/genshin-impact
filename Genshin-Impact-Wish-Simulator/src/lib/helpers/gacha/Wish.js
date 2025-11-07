@@ -1,4 +1,5 @@
 import { standard } from '$lib/data/banners/standard.json';
+import { member } from '$lib/data/banners/member.json';
 import characterWish from './wishCharacter';
 import beginerWish from './wishBeginner';
 import memberWish from './wishMember';
@@ -12,16 +13,19 @@ const WISH = {
 		this._phase = phase;
 
 		if (version.match(/(custom|local)/gi)) return this._initCustom(customData);
-		const { data } = await import(`../../data/banners/events/${version}.json`);
-		const { standardVersion, weapons, events } = data.find((d) => d.phase === phase).banners;
 
-		this._characters = events;
-		this._isDualBanner = events.featured?.length > 1;
-		this._weapons = weapons;
-		this._standardVer = standardVersion;
+		// 修改开始：名单卡池模式仅加载成员卡池
+		const normalizedPhase = Number.parseInt(phase, 10);
+		const memberEntry =
+			member.find(({ version }) => version === normalizedPhase) || member[0] || {};
+		this._characters = { featured: [], rateup: [] };
+		this._isDualBanner = false;
+		this._weapons = { featured: [], rateup: [], bannerName: '' };
+		this._standardVer = memberEntry.version || 1;
 		this._customData = {};
-		return this;
-	},
+                return this;
+                // 修改结束
+        },
 
 	_initCustom(customData) {
 		this._customData = customData;
