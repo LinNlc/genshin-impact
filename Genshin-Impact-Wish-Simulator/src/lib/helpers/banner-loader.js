@@ -75,43 +75,37 @@ const checkBeginnerBanner = () => {
 };
 
 export const initializeBanner = async ({ patch, phase }) => {
-	try {
-		if (!patch || !phase) return;
-		if (patch.match(/(local|custom)/gi)) return useCustomBanner(phase);
+        try {
+                if (!patch || !phase) return;
+                if (patch.match(/(local|custom)/gi)) return useCustomBanner(phase);
 
-		const list = checkBeginnerBanner() ? [{ type: 'beginner', ...beginner.featured }] : [];
+                // 修改开始：仅保留名单抽取卡池
+                const list = [];
 
-		const { data } = await import(`$lib/data/banners/events/${patch}.json`);
-		const { banners } = data.find((b) => b.phase === phase);
-		const { events, weapons, standardVersion: stdver } = banners;
-		const { featured: stdFeatured } = standard.find(({ version }) => stdver === version) || {};
-		const { featured: memFeatured } = member.find(({ version }) => stdver === version) || {};
-		const charEventBanner = {
-			type: 'character-event',
-			rateup: events.rateup,
-			stdver
-		};
+                const { data } = await import(`$lib/data/banners/events/${patch}.json`);
+                const { banners } = data.find((b) => b.phase === phase);
+                const { standardVersion: stdver } = banners;
+                const { featured: memFeatured } = member.find(({ version }) => stdver === version) || {};
 
-		list.push({ type: 'member', stdver, ...memFeatured});
+                if (memFeatured) {
+                        list.push({ type: 'member', stdver, ...memFeatured });
+                }
 
-		events.featured.forEach((eventdata) => list.push({ ...eventdata, ...charEventBanner }));
-		list.push({ type: 'weapon-event', stdver, ...weapons });
-		list.push({ type: 'standard', stdver, ...stdFeatured });
+                bannerList.set(list);
+                isFatepointSystem.set(false);
+                // 修改结束
 
-		bannerList.set(list);
-		isFatepointSystem.set(!!weapons.fatepointsystem);
+                activeVersion.set({ patch, phase });
+                activeBanner.set(0);
+                localConfig.set('version', `${patch}-${phase}`);
 
-		activeVersion.set({ patch, phase });
-		activeBanner.set(0);
-		localConfig.set('version', `${patch}-${phase}`);
-
-		customData.set({});
-		isCustomBanner.set(false);
-		return { status: 'ok' };
-	} catch (e) {
-		console.error(e);
-		return { status: 'error', e };
-	}
+                customData.set({});
+                isCustomBanner.set(false);
+                return { status: 'ok' };
+        } catch (e) {
+                console.error(e);
+                return { status: 'error', e };
+        }
 };
 
 export const handleShowStarter = (isShow) => {
