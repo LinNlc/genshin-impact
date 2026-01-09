@@ -80,19 +80,38 @@
 	const bannerLoaded = getContext('bannerLoaded');
 
 	const normalizePools = (pools = []) => {
-		return pools.map((pool, index) => ({
-			id: pool.id ?? `${index}`,
-			type: 'prize',
-			bannerName: pool.name,
-			coverUrl: pool.coverUrl || pool.cover || pool.imageUrl,
-			thumbnailUrl: pool.thumbnailUrl || pool.coverUrl || pool.cover || pool.imageUrl,
-			pinned: !!pool.pinned,
-			showTenRoll: pool.showTenRoll ?? true,
-			drawMode: pool.drawMode || 'rarity',
-			rules: pool.rules || '',
-			remainingTotal: pool.remainingTotal ?? pool.stock ?? 0,
-			isSoldOut: pool.isSoldOut ?? (pool.remainingTotal ?? pool.stock ?? 0) <= 0
-		}));
+		return pools.map((pool, index) => {
+			const remaining =
+				pool.quantity_left ??
+				pool.remaining_total ??
+				pool.remainingTotal ??
+				pool.stock ??
+				0;
+			const status = pool.status || 'draft';
+			const isActive = status === 'active';
+			return {
+				id: pool.id ?? `${index}`,
+				type: 'prize',
+				bannerName: pool.name,
+				description: pool.description || '',
+				coverUrl: pool.cover_url || pool.coverUrl || pool.cover || pool.image_url || pool.imageUrl,
+				thumbnailUrl:
+					pool.cover_url ||
+					pool.thumbnail_url ||
+					pool.coverUrl ||
+					pool.cover ||
+					pool.image_url ||
+					pool.imageUrl,
+				pinned: !!(pool.is_pinned ?? pool.pinned),
+				showTenRoll: pool.allow_ten_pull ?? pool.showTenRoll ?? true,
+				drawMode: pool.draw_mode || pool.drawMode || 'weighted',
+				rules: pool.redeem_info || pool.rules || '',
+				remainingTotal: remaining,
+				status,
+				isActive,
+				isSoldOut: remaining <= 0
+			};
+		});
 	};
 
 	const loadPools = async (token) => {

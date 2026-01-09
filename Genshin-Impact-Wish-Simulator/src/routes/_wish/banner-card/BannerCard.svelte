@@ -22,7 +22,7 @@
 	// prettier-ignore
 	let type, featured, character, bannerName, rateup, textOffset, charTitle, vision, images, artPosition;
 	// prettier-ignore
-	$: ({ type, featured, character, bannerName, rateup, textOffset, charTitle, vision, images, artPosition, watermark, coverUrl, rules, remainingTotal, isSoldOut } = data);
+	$: ({ type, featured, character, bannerName, rateup, textOffset, charTitle, vision, images, artPosition, watermark, coverUrl, rules, remainingTotal, isSoldOut, status, description } = data);
 
 	let clientWidth;
 	let clientHeight;
@@ -59,7 +59,7 @@
 				wrapperClass="card-image skeleton-event"
 			/>
 			<div class="frame skeleton-event">
-				<FramePrize {bannerName} {rules} {remainingTotal} {isSoldOut} />
+				<FramePrize {bannerName} {rules} {remainingTotal} {isSoldOut} {status} {description} />
 			</div>
 		{:else if $isCustomBanner}
 			<BannerImage

@@ -37,20 +37,24 @@
 			name: item.name,
 			rarity: item.rarity || 3,
 			type: 'prize',
-			imageUrl: item.imageUrl || item.image || item.coverUrl,
+			imageUrl: item.image_url || item.imageUrl || item.image || item.cover_url || item.coverUrl,
 			isNew: item.isNew ?? true
 		}));
 	};
 
 	const updatePoolState = (pool) => {
 		if (!pool?.id) return;
+		const remaining = pool.quantity_left ?? pool.remaining_total ?? pool.remainingTotal;
+		const status = pool.status;
 		bannerList.update((list) =>
 			list.map((entry) =>
 				entry.id === pool.id
 					? {
 							...entry,
-							remainingTotal: pool.remainingTotal ?? entry.remainingTotal,
-							isSoldOut: pool.isSoldOut ?? (pool.remainingTotal ?? entry.remainingTotal) <= 0
+							remainingTotal: remaining ?? entry.remainingTotal,
+							status: status ?? entry.status,
+							isActive: status ? status === 'active' : entry.isActive,
+							isSoldOut: pool.isSoldOut ?? (remaining ?? entry.remainingTotal) <= 0
 					  }
 					: entry
 			)

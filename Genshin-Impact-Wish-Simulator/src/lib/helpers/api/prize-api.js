@@ -36,9 +36,9 @@ export const fetchPools = async (token) => {
 };
 
 export const drawPrize = async ({ token, poolId, count }) => {
-	return requestJson(`/api/pools/${poolId}/draw`, {
+	return requestJson('/api/draw', {
 		method: 'POST',
 		token,
-		body: { count }
+		body: { poolId, count }
 	});
 };

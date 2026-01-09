@@ -587,7 +587,13 @@
 		"banner": {
 			"rules": "抽奖规则",
 			"remaining": "剩余 {count}",
-			"soldOut": "已售罄"
+			"soldOut": "已售罄",
+			"status": {
+				"draft": "未发布",
+				"paused": "已暂停",
+				"ended": "已结束",
+				"deleted": "已删除"
+			}
 		}
 	}
 }

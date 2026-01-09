@@ -587,7 +587,13 @@
 		"banner": {
 			"rules": "Rules",
 			"remaining": "Remaining {count}",
-			"soldOut": "Sold Out"
+			"soldOut": "Sold Out",
+			"status": {
+				"draft": "Draft",
+				"paused": "Paused",
+				"ended": "Ended",
+				"deleted": "Deleted"
+			}
 		}
 	}
 }

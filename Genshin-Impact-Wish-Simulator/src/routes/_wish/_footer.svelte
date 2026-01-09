@@ -9,6 +9,7 @@
 	$: hasPool = !!currentBanner?.id;
 	$: allowTenRoll = currentBanner.showTenRoll ?? true;
 	$: isSoldOut = currentBanner.isSoldOut ?? false;
+	$: isActive = currentBanner.isActive ?? true;
 
 	const onWish = getContext('onWish');
 	const readyToPull = getContext('readyToPull');
@@ -16,11 +17,11 @@
 	const roll = getContext('doRoll');
 	const handleSingleRollClick = () => {
 		playSfx('roll');
-		if (!hasPool) return;
+		if (!hasPool || !isActive) return;
 		roll(1, currentBanner);
 	};
 	const handleMultiRollClick = () => {
-		if (!hasPool) return;
+		if (!hasPool || !isActive) return;
 		playSfx('roll');
 		roll(10, currentBanner);
 	};
@@ -28,13 +29,13 @@
 	// ShortCut
 	const appReady = getContext('appReady');
 	hotkeys('enter', 'index', (e) => {
-		if (!$appReady || $onWish || isSoldOut || !hasPool) return;
+		if (!$appReady || $onWish || isSoldOut || !hasPool || !isActive) return;
 		e.preventDefault();
 		handleMultiRollClick();
 	});
 
 	hotkeys('shift+enter', 'index', (e) => {
-		if (!$appReady || $onWish || isSoldOut || !hasPool) return;
+		if (!$appReady || $onWish || isSoldOut || !hasPool || !isActive) return;
 		e.preventDefault();
 		handleSingleRollClick();
 	});
@@ -48,7 +49,7 @@
 			<button
 				class="single wish-button"
 				on:click={handleSingleRollClick}
-				disabled={$onWish || !$readyToPull || isSoldOut || !hasPool}
+				disabled={$onWish || !$readyToPull || isSoldOut || !hasPool || !isActive}
 			>
 				<div class="top">{$t('gift.draw.single')}</div>
 			</button>
@@ -57,7 +58,7 @@
 				<button
 					class="ten wish-button"
 					on:click={handleMultiRollClick}
-					disabled={$onWish || !$readyToPull || isSoldOut || !hasPool}
+					disabled={$onWish || !$readyToPull || isSoldOut || !hasPool || !isActive}
 				>
 					<div class="top">{$t('gift.draw.ten')}</div>
 				</button>
