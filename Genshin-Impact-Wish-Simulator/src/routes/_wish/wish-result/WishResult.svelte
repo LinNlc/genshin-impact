@@ -164,7 +164,7 @@
 			bind:clientWidth
 			in:fade={{ duration: 500, delay: 200 }}
 		>
-			{#each list as { name, rarity, type, outfitName, vision, weaponType, bonusQty, bonusType, stelaFortuna, useOutfit, offset, custom, chineseChar }, i}
+			{#each list as { name, rarity, type, imageUrl, outfitName, vision, weaponType, bonusQty, bonusType, stelaFortuna, useOutfit, offset, custom, chineseChar }, i}
 				{#if activeIndex === i}
 					<div class="art-wrapper">
 						{#if !isSplashOut} <SplashLight type="in" {rarity} /> {/if}
@@ -175,6 +175,7 @@
 								{custom}
 								{name}
 								{type}
+								{imageUrl}
 								{outfitName}
 								{weaponType}
 								{useOutfit}

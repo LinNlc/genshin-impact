@@ -6,6 +6,7 @@
 
 	export let name;
 	export let type;
+	export let imageUrl;
 	export let outfitName;
 	export let weaponType;
 	export let useOutfit;
@@ -31,6 +32,11 @@
 		<div class="zoomist-image weapon anim {weaponType}-parent" use:removeAnimClass>
 			<img src={$assets[`bg-${weaponType}.webp`]} alt={weaponType} class="weaponbg" />
 			<img use:lazyLoad={$assets[name]} alt={name} class={weaponType} />
+		</div>
+
+	{:else if type === 'prize'}
+		<div class="zoomist-image" style={pos(offset, clientHeight, clientWidth)}>
+			<img use:lazyLoad={imageUrl} alt={name} crossorigin="anonymous" />
 		</div>
 
 	{:else if type === 'member'}

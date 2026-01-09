@@ -1,28 +1,23 @@
 <script>
-	import { page } from '$app/stores';
 	import { fade } from 'svelte/transition';
 	import { writable } from 'svelte/store';
 	import { getContext, onMount, setContext } from 'svelte';
 	import hotkeys from 'hotkeys-js';
 
-	import browserState from '$lib/helpers/browserState';
-	import { assets, preloadVersion, showBeginner } from '$lib/store/app-stores';
-	import { dailyWelkin, localConfig } from '$lib/helpers/dataAPI/api-localstore';
-	import { importLocalConfig, setBannerVersionAndPhase } from '$lib/helpers/dataAPI/storage-reader';
-	import { handleShowStarter, initializeBanner } from '$lib/helpers/banner-loader';
-	import { userCurrencies } from '$lib/helpers/currencies';
+	import { assets, authToken, bannerList, activeBanner, userId } from '$lib/store/app-stores';
+	import { localConfig } from '$lib/helpers/dataAPI/api-localstore';
 	import { pauseSfx, playSfx } from '$lib/helpers/audio/audio';
+	import { fetchPools, loginWithEmployeeId } from '$lib/helpers/api/prize-api';
 
-	import ModalInitBanner from './_custom-banner/ModalInitBanner.svelte';
-	import ModalWelcome from './_index/ModalWelcome.svelte';
-	import WelkinCheckin from './_index/WelkinCheckin.svelte';
-	import PreloadMeteor from './_index/PreloadMeteor.svelte';
 	import MainWish from './_wish/index.svelte';
+	import ModalEmployeeLogin from './_index/ModalEmployeeLogin.svelte';
 
-	let status = '';
+	let status = 'ok';
 	let pageActive = 'index';
-	let showWelcomeModal = true;
-	let shareID = '';
+	let showLoginModal = true;
+	let loginProcessing = false;
+	let loginError = '';
+	let requirePassword = false;
 
 	let appReady = writable(false);
 	let onWish = writable(false);
@@ -38,13 +33,13 @@
 	setContext('animateBG', animatebg);
 
 	// Background Music
-	$: if (!showWelcomeModal) {
+	$: if (!showLoginModal) {
 		if (pageActive !== 'index' || $onWish) pauseSfx('wishBacksound');
 		else playSfx('wishBacksound');
 	}
 
 	const bgmHandle = () => {
-		if (showWelcomeModal) return; // User is not ready to Wish
+		if (showLoginModal) return; // User is not ready to Wish
 		if ($onWish) return; // dont resume/pause if user on wishing
 		if (pageActive !== 'index') return; // dont handle BGM if not index page
 
@@ -53,80 +48,91 @@
 		return pauseSfx('wishBacksound');
 	};
 
-	// Welkin Checkin
-	let showWelkinScreen = false;
-	const welkinCheckin = () => {
-		const { remaining, diff, latestCheckIn } = dailyWelkin.getData();
-		showWelkinScreen = remaining > 0 && remaining - diff >= 0 && diff > 0;
-		if (latestCheckIn) return dailyWelkin.checkin();
-	};
-	setContext('closeWelkin', () => (showWelkinScreen = false));
-
 	const startApp = () => {
 		appReady.set(true);
 		hotkeys.setScope('index');
-		showWelcomeModal = false;
-		welkinCheckin();
+		showLoginModal = false;
 		playSfx();
 	};
 	// Welcome Modal && Custom Banner Modal
 	setContext('startApp', startApp);
 
-	// Menu
-	let showMenu = false;
-	const handleMenu = (act) => {
-		showMenu = !showMenu;
-		if (act === 'mute') return;
-		playSfx(!showMenu ? 'close' : 'click');
-	};
-	setContext('handleMenu', handleMenu);
-
 	// Page Navigation
 	const navigate = (page) => {
 		let beforeNavigate = pageActive;
 		pageActive = page;
-		showMenu = false;
 		hotkeys.setScope(page);
 
 		if (beforeNavigate === pageActive) return;
 		hotkeys.deleteScope(beforeNavigate);
 
-		if (beforeNavigate !== 'index') return browserState.back();
-		browserState.set(page);
+		return;
 	};
 	setContext('navigate', navigate);
 
 	// Component Loader
-	let AllBanners, GachaInfo, Inventory, Shop, Feedback, Menu, ObtainedItem, ModalConvert;
+	let ObtainedItem, ModalConvert;
 	const asyncLoadComponent = async () => {
 		ObtainedItem = (await import('$lib/components/ObtainedItem.svelte')).default;
 		ModalConvert = (await import('./_index/ModalConvert.svelte')).default;
-
-		Menu = (await import('./_menu/index.svelte')).default;
-		GachaInfo = (await import('./_gachainfo/index.svelte')).default;
-		AllBanners = (await import('./_allbanners/index.svelte')).default;
-		Inventory = (await import('./_inventory/index.svelte')).default;
-		Shop = (await import('./_shop/index.svelte')).default;
-		Feedback = (await import('./_feedback/index.svelte')).default;
 	};
 
-	// Switching Banner
 	const bannerLoaded = getContext('bannerLoaded');
-	const loadBanner = async (patchPhase) => {
-		const initBanner = await initializeBanner(patchPhase);
-		({ status } = initBanner || {});
+
+	const normalizePools = (pools = []) => {
+		return pools.map((pool, index) => ({
+			id: pool.id ?? `${index}`,
+			type: 'prize',
+			bannerName: pool.name,
+			coverUrl: pool.coverUrl || pool.cover || pool.imageUrl,
+			thumbnailUrl: pool.thumbnailUrl || pool.coverUrl || pool.cover || pool.imageUrl,
+			pinned: !!pool.pinned,
+			showTenRoll: pool.showTenRoll ?? true,
+			drawMode: pool.drawMode || 'rarity',
+			rules: pool.rules || '',
+			remainingTotal: pool.remainingTotal ?? pool.stock ?? 0,
+			isSoldOut: pool.isSoldOut ?? (pool.remainingTotal ?? pool.stock ?? 0) <= 0
+		}));
+	};
+
+	const loadPools = async (token) => {
+		const response = await fetchPools(token);
+		const list = normalizePools(response?.data || response?.pools || response || []);
+		list.sort((a, b) => Number(b.pinned) - Number(a.pinned));
+		bannerList.set(list);
+		activeBanner.set(0);
+		status = 'ok';
 		bannerLoaded();
 	};
 
-	onMount(() => {
-		setBannerVersionAndPhase();
-		preloadVersion.subscribe(loadBanner);
-		showBeginner.subscribe(handleShowStarter);
+	const handleLogin = async ({ detail }) => {
+		const { employeeId, password } = detail;
+		loginProcessing = true;
+		loginError = '';
+		try {
+			const response = await loginWithEmployeeId({ userId: employeeId, password });
+			const token = response?.token || response?.data?.token || '';
+			const requirePwd = response?.requirePassword || response?.data?.requirePassword;
+			if (requirePwd && !password) {
+				requirePassword = true;
+				loginError = response?.message || '需要输入密码';
+				return;
+			}
+			authToken.set(token);
+			userId.set(response?.userId || response?.data?.userId || employeeId);
+			await loadPools(token);
+			startApp();
+		} catch (error) {
+			loginError = error?.message || '登录失败';
+		} finally {
+			loginProcessing = false;
+		}
+	};
 
-		importLocalConfig();
-		userCurrencies.init();
+	onMount(() => {
 		asyncLoadComponent();
 		animatebg();
+		bannerLoaded();
 
 		window.addEventListener('popstate', (e) => {
 			if (e.state.page) return;
@@ -134,10 +140,6 @@
 			navigate('index');
 		});
 		document.addEventListener('visibilitychange', bgmHandle);
-
-		// Check Custom Banner
-		const { url } = $page;
-		shareID = url.searchParams.get('banner');
 	});
 
 	// Obtained
@@ -159,17 +161,6 @@
 	let showConvertModal = false;
 	setContext('openConvertModal', () => (showConvertModal = true));
 	setContext('closeConvertModal', () => (showConvertModal = false));
-
-	// Feedback
-	let chatLoaded = false; // initial load
-	let showChat = false; // toggle hide-show
-	const chatToggle = () => {
-		chatLoaded = true;
-		showChat = !showChat;
-		playSfx(showChat ? 'shopnav' : 'close');
-	};
-	setContext('chatToggle', chatToggle);
-	$: hotkeys('o', pageActive, chatToggle);
 </script>
 
 {#if status !== 'ok'}
@@ -193,30 +184,15 @@
 <!-- Main Banner -->
 {#if pageActive === 'index'}
 	<MainWish />
+{/if}
 
-	{#if showMenu}
-		<svelte:component this={Menu} />
-	{/if}
-
-	<!-- Select Banner -->
-{:else if pageActive === 'allbanners'}
-	<svelte:component this={AllBanners} />
-
-	<!-- Wish Details -->
-{:else if pageActive === 'details'}
-	<svelte:component this={GachaInfo} page="details" />
-
-	<!-- Wish Record -->
-{:else if pageActive === 'history'}
-	<svelte:component this={GachaInfo} page="history" />
-
-	<!-- Inventory -->
-{:else if pageActive === 'inventory'}
-	<svelte:component this={Inventory} />
-
-	<!-- Shop -->
-{:else if pageActive === 'shop'}
-	<svelte:component this={Shop} />
+{#if showLoginModal}
+	<ModalEmployeeLogin
+		bind:requirePassword
+		processing={loginProcessing}
+		errorMessage={loginError}
+		on:submit={handleLogin}
+	/>
 {/if}
 
 {#if showObtained}
@@ -231,20 +207,6 @@
 <!-- {#if chatLoaded}
 	<svelte:component this={Feedback} show={showChat} />
 {/if} -->
-
-{#if showWelkinScreen}
-	<WelkinCheckin />
-{/if}
-
-<!-- {#if showWelcomeModal}
-	{#if shareID}
-		<ModalInitBanner {shareID} />
-	{:else}
-		<ModalWelcome />
-	{/if}
-{/if} -->
-
-<PreloadMeteor />
 
 <style>
 	video {
