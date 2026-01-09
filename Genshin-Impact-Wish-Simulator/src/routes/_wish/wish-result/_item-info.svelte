@@ -21,7 +21,7 @@
 </script>
 
 <div class="info">
-	{#if type !== 'outfit'}
+	{#if type !== 'outfit' && type !== 'prize'}
 		<div class="icon vision" class:animate={!staticMode} use:removeAnimClass>
 			<SvgIcon name={weaponType || vision} />
 		</div>
@@ -40,6 +40,8 @@
 				{chineseChar}
 			{:else if type === 'outfit'}
 				{$t(`outfit.item.${outfitName}.name`)}
+			{:else if type === 'prize'}
+				{itemName}
 			{:else if weaponType}
 				{$t(itemName)}
 			{:else}

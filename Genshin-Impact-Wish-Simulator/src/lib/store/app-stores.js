@@ -7,6 +7,8 @@ export const preloadVersion = writable({ patch: version, phase: wishPhase });
 export const activeVersion = writable({ patch: version, phase: wishPhase });
 export const bannerList = writable([]);
 export const activeBanner = writable(0);
+export const userId = writable('');
+export const authToken = writable('');
 
 // Beginner
 export const showBeginner = writable(true);

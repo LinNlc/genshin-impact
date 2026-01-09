@@ -1,120 +1,82 @@
 <script>
-	import { getContext, onMount, setContext } from 'svelte';
+	import { getContext, setContext } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
 	import { t } from 'svelte-i18n';
 	import {
 		activeBanner,
 		bannerList,
 		assets,
-		activeVersion,
-		wishAmount,
-		acquaint,
-		intertwined,
-		stardust,
-		starglitter,
-		customData
+		authToken
 	} from '$lib/store/app-stores';
-	import { localBalance, localConfig } from '$lib/helpers/dataAPI/api-localstore';
+	import { localConfig } from '$lib/helpers/dataAPI/api-localstore';
 	import { APP_TITLE } from '$lib/env';
 	import { playSfx } from '$lib/helpers/audio/audio';
-	import WISH, { roll } from '$lib/helpers/gacha/Wish';
+	import { drawPrize } from '$lib/helpers/api/prize-api';
+	import { pushToast } from '$lib/helpers/toast';
 
 	// Components
 	import Header from './_header.svelte';
 	import Footer from './_footer.svelte';
-	import OutOfPrimogem from './_out-of-primogem.svelte';
 	import BannerItem from './_banner-item.svelte';
-	import EpitomizedModal from './epitomized-path/EpitomizedPath.svelte';
 	import Meteor from './wish-result/_meteor.svelte';
 	import WishResult from './wish-result/WishResult.svelte';
 
-	let rollCount = 0;
 	let result = [];
-	let WishInstance;
 
 	let type;
 	$: nowBanner = $bannerList[$activeBanner] || {};
 	$: ({ type } = nowBanner);
 	$: bannerType = type || '';
-	$: isEvent = bannerType.match('event');
-	$: currencyUsed = isEvent ? $intertwined : $acquaint;
-	$: isUnlimited = $wishAmount === 'unlimited';
-
-	// Load Wish Configuration When changing banner Version
-	const initialWish = async ({ patch, phase }) => {
-		if (!patch || !phase) return;
-		WishInstance = await WISH.init(patch, phase, $customData);
-	};
-	onMount(() => activeVersion.subscribe(initialWish));
-
-	const getIndexOfCharBanner = () => {
-		const events = $bannerList.filter(({ type }) => type === 'character-event');
-		const index = events.findIndex(({ character }) => character === nowBanner.character);
-		return index;
-	};
-
-	// Epitomized Modal
-	let openEpitomized = false;
-	const handleEpitomizedModal = () => (openEpitomized = !openEpitomized);
-	setContext('handleEpitomizedModal', handleEpitomizedModal);
 
 	// Wish Roller
 	let multi = false;
-	let rollCost;
-	let showConvertModal = false;
 	let onWish = getContext('onWish');
 
-	const doRoll = async (count, bannerToRoll) => {
+	const toPrizeResults = (items = []) => {
+		return items.map((item) => ({
+			name: item.name,
+			rarity: item.rarity || 3,
+			type: 'prize',
+			imageUrl: item.imageUrl || item.image || item.coverUrl,
+			isNew: item.isNew ?? true
+		}));
+	};
 
-		rollCount = count;
+	const updatePoolState = (pool) => {
+		if (!pool?.id) return;
+		bannerList.update((list) =>
+			list.map((entry) =>
+				entry.id === pool.id
+					? {
+							...entry,
+							remainingTotal: pool.remainingTotal ?? entry.remainingTotal,
+							isSoldOut: pool.isSoldOut ?? (pool.remainingTotal ?? entry.remainingTotal) <= 0
+					  }
+					: entry
+			)
+		);
+	};
+
+	const doRoll = async (count, pool) => {
 		multi = count > 1;
-		const tmp = [];
-
-		rollCost = bannerToRoll === 'beginner' ? 8 : count;
-		if (!isUnlimited && rollCost > currencyUsed) return (showConvertModal = true);
-		const indexOfCharBanner = bannerToRoll === 'character-event' ? getIndexOfCharBanner() : 0;
 		onWish.set(true);
 
-		for (let i = 0; i < count; i++) {
-			const result = await roll(bannerToRoll, WishInstance, indexOfCharBanner);
-			tmp.push(result);
+		try {
+			const response = await drawPrize({
+				token: $authToken,
+				poolId: pool.id,
+				count
+			});
+			const items = response?.items || response?.data?.items || [];
+			result = toPrizeResults(items);
+			updatePoolState(response?.pool || response?.data?.pool);
+			handleMeteorAnimation();
+		} catch (error) {
+			onWish.set(false);
+			pushToast({ message: error?.message || '抽奖失败', type: 'error' });
 		}
-
-		result = tmp;
-		handleMeteorAnimation();
-		if (isUnlimited) return;
-		updateMilestones();
-		updateFatesBalance(bannerToRoll);
 	};
 	setContext('doRoll', doRoll);
-
-	const updateFatesBalance = (banner) => {
-		const isAcquaint = ['beginner', 'standard', 'member'].includes(banner);
-		const funds = isAcquaint ? acquaint : intertwined;
-		funds.update((n) => {
-			const afterUpdate = n - (banner === 'beginner' && rollCount > 1 ? 8 : rollCount);
-			localBalance.set(isAcquaint ? 'acquaint' : 'intertwined', afterUpdate);
-			return afterUpdate;
-		});
-	};
-
-	const updateMilestones = () => {
-		const update = (type) => {
-			const qty = result.reduce((prev, { bonusQty, bonusType }) => {
-				return prev + (bonusType === type ? bonusQty : 0);
-			}, 0);
-
-			const milestone = type === 'stardust' ? stardust : starglitter;
-			milestone.update((n) => {
-				const afterUpdate = n + qty;
-				localBalance.set(type, afterUpdate);
-				return afterUpdate;
-			});
-		};
-
-		update('starglitter');
-		update('stardust');
-	};
 
 	// Wish Result Handler
 	let skipSplashArt = false;
@@ -149,41 +111,12 @@
 		showMeteor = true;
 	};
 
-	// Modal Convert
-	const closeModal = () => {
-		playSfx('close');
-		showConvertModal = false;
-	};
-	setContext('closeModal', closeModal);
-
 	const reroll = (amount) => {
 		playSfx();
-		const multiAmount = bannerType === 'beginner' ? 10 : amount;
-		doRoll(multi ? multiAmount : 1, bannerType);
-		showConvertModal = false;
+		doRoll(multi ? amount : 1, nowBanner);
 	};
 	setContext('reroll', reroll);
-
-	// Obtained Bonus
-	const countMilestone = (masterless) => {
-		return result.reduce((a, { bonusType, bonusQty }) => {
-			return a + (bonusType === masterless ? bonusQty : 0);
-		}, 0);
-	};
-
-	const showObtained = getContext('openObtained');
-	const checkObtained = () => {
-		const stardustQty = countMilestone('stardust');
-		const starglitterQty = countMilestone('starglitter');
-
-		const obtainedItems = [
-			{ item: 'stardust', qty: stardustQty },
-			{ item: 'starglitter', qty: starglitterQty }
-		];
-
-		if (!stardustQty && !starglitterQty) return;
-		showObtained(obtainedItems);
-	};
+	const checkObtained = () => {};
 </script>
 
 <svelte:head>
@@ -201,7 +134,7 @@
 
 <section style="background-image: url('{$assets['wish-background.webp']}');">
 	<div class="col top">
-		<Header {bannerType} />
+		<Header />
 	</div>
 
 	<div class="col banner">
@@ -210,18 +143,10 @@
 		</div>
 
 		<div class="col button" in:fly={{ y: 20, duration: 1000 }}>
-			<Footer {bannerType} />
+			<Footer />
 		</div>
 	</div>
 </section>
-
-{#if openEpitomized}
-	<EpitomizedModal />
-{/if}
-
-{#if showConvertModal}
-	<OutOfPrimogem isEventBanner={isEvent} {rollCost} />
-{/if}
 
 <style>
 	section {
