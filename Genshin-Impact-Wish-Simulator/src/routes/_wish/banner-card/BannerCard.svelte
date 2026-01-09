@@ -10,6 +10,7 @@
 	import FrameWeapon from './_frame-weapon.svelte';
 	import FrameStandard from './_frame-standard.svelte';
 	import FrameCustom from './_frame-custom.svelte';
+	import FramePrize from './_frame-prize.svelte';
 	import BannerImage from './_banner-image.svelte';
 	import ProbEditor from './_probability-editor.svelte';
 
@@ -21,14 +22,14 @@
 	// prettier-ignore
 	let type, featured, character, bannerName, rateup, textOffset, charTitle, vision, images, artPosition;
 	// prettier-ignore
-	$: ({ type, featured, character, bannerName, rateup, textOffset, charTitle, vision, images, artPosition, watermark } = data);
+	$: ({ type, featured, character, bannerName, rateup, textOffset, charTitle, vision, images, artPosition, watermark, coverUrl, rules, remainingTotal, isSoldOut, status, description } = data);
 
 	let clientWidth;
 	let clientHeight;
 
 	let imageError = false;
 	setContext('imageError', () => (imageError = true));
-	const editProb = getContext('editprob');
+	const editProb = getContext('editprob') || (() => {});
 
 	const navigate = getContext('navigate');
 	const openDetails = () => {
@@ -51,7 +52,16 @@
 		{/if}
 	</div>
 	<div class="front">
-		{#if $isCustomBanner}
+		{#if type === 'prize'}
+			<BannerImage
+				src={coverUrl}
+				alt={bannerName}
+				wrapperClass="card-image skeleton-event"
+			/>
+			<div class="frame skeleton-event">
+				<FramePrize {bannerName} {rules} {remainingTotal} {isSoldOut} {status} {description} />
+			</div>
+		{:else if $isCustomBanner}
 			<BannerImage
 				custom
 				src={images?.artURL}
@@ -126,12 +136,14 @@
 			</div>
 		{/if}
 
-		<div class="info">
-			<button class="detail" on:click={openDetails}> {$t('details.text')} </button>
-			{#if type !== 'beginner'}
-				<button class="gear" on:click={editProb}><i class="gi-gear" /></button>
-			{/if}
-		</div>
+		{#if type !== 'prize'}
+			<div class="info">
+				<button class="detail" on:click={openDetails}> {$t('details.text')} </button>
+				{#if type !== 'beginner'}
+					<button class="gear" on:click={editProb}><i class="gi-gear" /></button>
+				{/if}
+			</div>
+		{/if}
 	</div>
 </div>
 

@@ -564,10 +564,37 @@
 		"inputKeyTxt": "Input a Key to get more Benefits !",
 		"checkingKey": "Verifying Stored Access Key",
 		"benefit": "Benefits",
-		"authorNotes": [
-			"Ads Removed",
-			"Unlimited Custom Banners",
-			"You can use the same key for {HSRWishSim} to get the same benefits"
-		]
+	"authorNotes": [
+		"Ads Removed",
+		"Unlimited Custom Banners",
+		"You can use the same key for {HSRWishSim} to get the same benefits"
+	],
+	"gift": {
+		"title": "Gift Draw",
+		"login": {
+			"title": "Employee Login",
+			"employeeId": "Employee ID",
+			"employeeIdPlaceholder": "Enter your employee ID",
+			"password": "Password",
+			"passwordPlaceholder": "Enter password if required",
+			"confirm": "Enter Draw",
+			"loading": "Verifying"
+		},
+		"draw": {
+			"single": "Single Draw",
+			"ten": "Ten Draws"
+		},
+		"banner": {
+			"rules": "Rules",
+			"remaining": "Remaining {count}",
+			"soldOut": "Sold Out",
+			"status": {
+				"draft": "Draft",
+				"paused": "Paused",
+				"ended": "Ended",
+				"deleted": "Deleted"
+			}
+		}
 	}
+}
 }

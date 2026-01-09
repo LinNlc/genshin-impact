@@ -6,9 +6,6 @@
 	import { playSfx } from '$lib/helpers/audio/audio';
 	import Icon from '$lib/components/Icon.svelte';
 	import SvgIcon from '$lib/components/SVGIcon.svelte';
-	import { each } from 'svelte/internal';
-	import changebanner from '$lib/helpers/audio/changebanner';
-	import Header from '../_header.svelte';
 
 	export let index;
 	export let clientHeight;
@@ -28,7 +25,8 @@
 		useOutfit,
 		outfitName,
 		custom,
-		chineseChar
+		chineseChar,
+		imageUrl
 	} = data;
 
 	const getCssVarPercent = (l, i) => {
@@ -74,6 +72,11 @@
 					<img src={$assets[name]} alt={name} class="wishpic" crossorigin="anonymous" />
 				</div>
 
+			{:else if type === 'prize'}
+				<div class="zoomist-image">
+					<img src={imageUrl} alt={name} class="wishpic" crossorigin="anonymous" />
+				</div>
+
 				<!-- Character -->
 			{:else}
 				<div
@@ -89,15 +92,15 @@
 				</div>
 			{/if}
 
-			<div class="info" in:fade={{ delay: 1000 }}>
-				<div class="icon" style="width: 100%;">
-					{#if isNew || type === 'weapon'}
-						{@const iconName = weaponType || vision}
-						<SvgIcon name={iconName} />
-					{/if}
-				</div>
+				<div class="info" in:fade={{ delay: 1000 }}>
+					<div class="icon" style="width: 100%;">
+						{#if (isNew || type === 'weapon') && type !== 'prize'}
+							{@const iconName = weaponType || vision}
+							<SvgIcon name={iconName} />
+						{/if}
+					</div>
 
-				{#if (isNew && type === 'character') || type === 'weapon'}
+				{#if (isNew && type === 'character') || type === 'weapon' || type === 'prize'}
 					<div class="star">
 						{#each Array(rarity) as _, i}
 							<div class="i gi-star" />

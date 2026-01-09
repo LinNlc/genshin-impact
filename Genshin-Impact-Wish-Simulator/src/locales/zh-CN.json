@@ -564,10 +564,37 @@
 		"inputKeyTxt": "Input a Key to get more Benefits !",
 		"checkingKey": "Verifying Stored Access Key",
 		"benefit": "Benefits",
-		"authorNotes": [
-			"Ads Removed",
-			"Unlimited Custom Banners",
-			"You can use the same key for {HSRWishSim} to get the same benefits"
-		]
+	"authorNotes": [
+		"Ads Removed",
+		"Unlimited Custom Banners",
+		"You can use the same key for {HSRWishSim} to get the same benefits"
+	],
+	"gift": {
+		"title": "礼品抽取",
+		"login": {
+			"title": "输入工号",
+			"employeeId": "工号",
+			"employeeIdPlaceholder": "请输入工号",
+			"password": "密码",
+			"passwordPlaceholder": "如需要请输入密码",
+			"confirm": "进入抽奖",
+			"loading": "正在验证"
+		},
+		"draw": {
+			"single": "单抽",
+			"ten": "十连"
+		},
+		"banner": {
+			"rules": "抽奖规则",
+			"remaining": "剩余 {count}",
+			"soldOut": "已售罄",
+			"status": {
+				"draft": "未发布",
+				"paused": "已暂停",
+				"ended": "已结束",
+				"deleted": "已删除"
+			}
+		}
 	}
+}
 }
